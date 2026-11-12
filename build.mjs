@@ -102,7 +102,7 @@ const bCard = p => card(`/blog/${p.slug}`, '', 'Blog', p.title, fmt(p.date), p.s
 const eventList = list => list.length ? `<ul class="list">${list.map(e => `<li><div class="when">${fmt(e.date)}</div><div><h3>${e.url ? `<a href="${esc(e.url)}" style="color:inherit">${esc(e.name)}</a>` : esc(e.name)}</h3><div class="meta">${esc(e.location || '')}${e.host ? ' · ' + esc(e.host) : ''}</div></div></li>`).join('')}</ul>` : '';
 
 // ---------- pages ----------
-write('style.css', read('static/style.css'));
+write('style.css', fs.existsSync(path.join(root, 'static/style.css')) ? read('static/style.css') : read('style.css'));
 write('favicon.svg', `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -2 108 112"><rect x="-10" y="-6" width="130" height="124" fill="#6A4C9C"/><ellipse cx="46" cy="27" rx="27" ry="9.5" fill="#F2B3D8" fill-opacity="0.5" transform="rotate(-16 50 20)"/><ellipse cx="50" cy="20" rx="27" ry="9.5" fill="none" stroke="#FCFAF2" stroke-width="7" transform="rotate(-16 50 20)"/><g fill="none" stroke="#FCFAF2" stroke-width="8.5" stroke-linecap="round"><path d="M50 40 L37 57"/><path d="M50 40 L63 57"/><path d="M45 54 L32 82"/><path d="M55 54 L68 82"/></g></svg>`);
 
 write('index.html', page({ body: `<div class="wrap"><div class="hero"><div class="rings"></div><p class="eyebrow">A show for founders and investors</p>
