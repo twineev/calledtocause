@@ -6,11 +6,11 @@ const SITE = process.env.SITE_URL || 'https://calledtocause.com';
 const CHANNEL_ID = 'UCvBZ6phclijg2x_AbXHR9cg';
 const YT_FEED = `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`;
 const TAGLINE = "Because the best companies aren't just funded; they're called into being.";
-const DESC = 'Unfiltered conversations with the founders building category-defining companies and the investors backing them, hosted by Twinee Madan.';
+const DESC = 'Unfiltered conversations with the founders building category-defining companies and the investors backing them, hosted by Twinee Madan and Valeria Mushak.';
 const LINKS = {
   youtube: 'https://www.youtube.com/@calledtocause',
-  spotify: process.env.SPOTIFY_URL || '',
-  substack: process.env.SUBSTACK_URL || '',
+  spotify: process.env.SPOTIFY_URL || 'https://open.spotify.com/show/0343bE5UBwLkRU4xW6W93Q',
+  substack: process.env.SUBSTACK_URL || 'https://calledtocause.substack.com/',
   x: process.env.X_URL || '',
   intermission: process.env.INTERMISSION_URL || '',
 };
@@ -93,7 +93,7 @@ function page({ title, desc = DESC, path: p = '/', body, type = 'website' }) {
 <nav aria-label="Main">${nav.map(([h, l]) => `<a href="${h}"${p.startsWith(h) ? ' aria-current="page"' : ''}>${l}</a>`).join('')}</nav></div></header>
 <main>${body}</main>
 <footer><div class="wrap"><div><div class="brand" style="color:var(--cream)">${MARK.replace('class="halo"','class="halo" style="stroke:#E05AB0"').replace('class="glow"','class="glow" style="fill:#F2B3D8;fill-opacity:.55"')}<span class="wm">Called<br>to Cause</span></div><br>${esc(TAGLINE)}</div>
-<div>${social.map(([l, u]) => `<a href="${esc(u)}">${l}</a>`).join(' · ')}${social.length ? ' · ' : ''}<a href="/rss.xml">RSS</a></div></div></footer></body></html>`;
+<div>${social.map(([l, u]) => `<a href="${esc(u)}">${l}</a>`).join(' · ')}</div></div></footer></body></html>`;
 }
 const card = (href, img, eyebrow, title, meta, sum) => `<article class="card">${img ? `<a href="${href}" tabindex="-1" aria-hidden="true"><img src="${img}" alt="" loading="lazy"></a>` : ''}<div class="b"><p class="eyebrow">${eyebrow}</p><h3><a href="${href}">${esc(title)}</a></h3><div class="meta">${meta}</div>${sum ? `<p>${esc(sum)}</p>` : ''}</div></article>`;
 const thumb = e => e.youtube ? `https://i.ytimg.com/vi/${e.youtube}/hqdefault.jpg` : '';
@@ -106,8 +106,9 @@ write('style.css', fs.existsSync(path.join(root, 'static/style.css')) ? read('st
 write('favicon.svg', `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-4 -2 108 112"><rect x="-10" y="-6" width="130" height="124" fill="#6A4C9C"/><ellipse cx="46" cy="27" rx="27" ry="9.5" fill="#F2B3D8" fill-opacity="0.5" transform="rotate(-16 50 20)"/><ellipse cx="50" cy="20" rx="27" ry="9.5" fill="none" stroke="#FCFAF2" stroke-width="7" transform="rotate(-16 50 20)"/><g fill="none" stroke="#FCFAF2" stroke-width="8.5" stroke-linecap="round"><path d="M50 40 L37 57"/><path d="M50 40 L63 57"/><path d="M45 54 L32 82"/><path d="M55 54 L68 82"/></g></svg>`);
 
 write('index.html', page({ body: `<div class="wrap"><div class="hero"><div class="rings"></div><p class="eyebrow">A show for founders and investors</p>
-<h1>Every founder has an origin story. Every investor has a reason they said yes.</h1>
-<p class="lead">${esc(DESC)}</p><a class="btn" href="/interviews">Watch the interviews</a><a class="btn ghost" href="/about">About the show</a></div>
+<h1 class="type">Every founder has an origin story. Every investor has a reason they said yes.</h1>
+<div style="margin-top:36px"><a class="btn" href="/interviews">Watch the interviews</a><a class="btn ghost" href="/about">About the show</a></div>
+<script>(function(){var h=document.querySelector('h1.type');if(!h||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;var t=h.textContent;h.setAttribute('aria-label',t);h.textContent='';var cs=[];t.split(' ').forEach(function(w,i,a){var s=document.createElement('span');s.className='w';s.setAttribute('aria-hidden','true');w.split('').forEach(function(c){var k=document.createElement('span');k.className='c';k.textContent=c;s.appendChild(k);cs.push(k)});h.appendChild(s);if(i<a.length-1)h.appendChild(document.createTextNode(' '))});var n=0,p=null;(function step(){if(p)p.classList.remove('now');if(n<cs.length){p=cs[n++];p.classList.add('on','now');setTimeout(step,/[.]/.test(p.textContent)?420:42)}else{p.classList.add('now','end')}})()})()</script></div>
 <section><div class="sh"><h2>Latest interviews</h2><a href="/interviews">All interviews</a></div>${interviews.length ? `<div class="grid">${interviews.slice(0, 3).map(iCard).join('')}</div>` : '<div class="empty">New conversations are on the way.</div>'}</section>
 <section><div class="sh"><h2>From the blog</h2><a href="/blog">All posts</a></div>${posts.length ? `<div class="grid">${posts.slice(0, 3).map(bCard).join('')}</div>` : '<div class="empty">First post coming soon.</div>'}</section>
 <section><div class="band"><p class="eyebrow" style="color:inherit">Find us in person</p><h2>Where Intermission will be</h2><p>${upcoming.length ? `Next up: <strong>${esc(upcoming[0].name)}</strong>, ${fmt(upcoming[0].date)}${upcoming[0].location ? ' in ' + esc(upcoming[0].location) : ''}.` : 'Events are being added. Check back soon.'} <a href="/events">See all events</a></p></div></section></div>` }));
@@ -125,11 +126,11 @@ write('events/index.html', page({ title: 'Events', path: '/events', desc: 'Event
 
 write('about/index.html', page({ title: 'About', path: '/about', body: `<div class="wrap article"><div class="hero" style="padding-bottom:16px"><p class="eyebrow">About</p><h1>Called to Cause</h1></div>
 <p>Every founder has an origin story. Every investor has a reason they said yes. Called to Cause is the show where we get both.</p>
-<p>Hosted by Twinee Madan, this series features unfiltered conversations with the builders creating category-defining companies and the investors putting their capital where their conviction is. No pitch decks, no polish. Just the real moments: the years nobody saw, the check that almost didn't get written, the belief that outlasted the doubt.</p>
+<p>Hosted by Twinee Madan and Valeria Mushak, this series features unfiltered conversations with the builders creating category-defining companies and the investors putting their capital where their conviction is. No pitch decks, no polish. Just the real moments: the years nobody saw, the check that almost didn't get written, the belief that outlasted the doubt.</p>
 <p>Founders talk about what it actually costs to build: the trade-offs, the pivots, the thing they got wrong before they got it right. Investors talk about why they said yes when everyone else said no, and what conviction looks like before the traction does.</p>
 <p>This isn't capital and company-building told separately. It's the same story, from both sides of the table.</p>
 <p><em>${esc(TAGLINE)}</em></p>
-<h2>Follow along</h2><p>Subscribe on <a href="${LINKS.youtube}">YouTube</a> or add our <a href="/rss.xml">RSS feed</a> to your reader.</p></div>` }));
+<h2>Follow along</h2><p>Subscribe on ${[['YouTube', LINKS.youtube], ['Spotify', LINKS.spotify], ['Substack', LINKS.substack]].filter(x => x[1]).map(([l, u]) => `<a href="${esc(u)}">${l}</a>`).join(', ').replace(/, ([^,]*)$/, ' or $1')}.</p></div>` }));
 
 write('404.html', page({ title: 'Not found', body: `<div class="wrap"><div class="hero"><h1>Not found</h1><p class="lead"><a href="/">Back to the home page</a></p></div></div>` }));
 
