@@ -18,6 +18,7 @@ const root = path.dirname(new URL(import.meta.url).pathname);
 const out = path.join(root, 'dist');
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const read = p => fs.readFileSync(path.join(root, p), 'utf8');
+const list = d => { try { return fs.readdirSync(path.join(root, d)); } catch { console.warn('Folder not found, skipping:', d); return []; } };
 const write = (p, s) => { const f = path.join(out, p); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, s); };
 const slug = s => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 80);
 const fmt = d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
@@ -41,7 +42,7 @@ function md(src) {
 }
 
 // ---------- content ----------
-const posts = fs.readdirSync(path.join(root, 'content/blog')).filter(f => f.endsWith('.md')).map(f => {
+const posts = list('content/blog').filter(f => f.endsWith('.md')).map(f => {
   const [fm, body] = front(read('content/blog/' + f));
   return { ...fm, slug: fm.slug || slug(fm.title || f), html: md(body) };
 }).filter(p => p.title && p.draft !== 'true').sort((a, b) => b.date.localeCompare(a.date));
@@ -59,7 +60,7 @@ async function youtubeEntries() {
     });
   } catch (e) { console.warn('YouTube feed unavailable, using only content/interviews:', e.message || e); return []; }
 }
-const manual = fs.readdirSync(path.join(root, 'content/interviews')).filter(f => f.endsWith('.md') && f !== 'README.md').map(f => {
+const manual = list('content/interviews').filter(f => f.endsWith('.md') && f !== 'README.md').map(f => {
   const [fm, body] = front(read('content/interviews/' + f)); return { ...fm, html: md(body) };
 });
 const byId = new Map();
@@ -67,7 +68,7 @@ for (const e of await youtubeEntries()) byId.set(e.youtube, e);
 for (const e of manual) byId.set(e.youtube || e.title, { ...(byId.get(e.youtube) || {}), ...e });
 const interviews = [...byId.values()].filter(e => e.title).map(e => ({ ...e, slug: slug(e.title) })).sort((a, b) => b.date.localeCompare(a.date));
 
-const events = JSON.parse(read('content/events.json')).events.filter(e => !e.draft && e.name);
+const events = (() => { try { return JSON.parse(read('content/events.json')).events || []; } catch { console.warn('content/events.json missing or invalid, no events'); return []; } })().filter(e => !e.draft && e.name);
 const today = new Date().toISOString().slice(0, 10);
 const upcoming = events.filter(e => e.date >= today).sort((a, b) => a.date.localeCompare(b.date));
 const past = events.filter(e => e.date < today).sort((a, b) => b.date.localeCompare(a.date));
