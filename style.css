@@ -59,3 +59,11 @@ animation:grain 1.2s steps(6) infinite}
 @keyframes grain{0%{transform:translate(0,0)}17%{transform:translate(-3%,2%)}33%{transform:translate(2%,-3%)}50%{transform:translate(-2%,-1%)}67%{transform:translate(3%,3%)}83%{transform:translate(-1%,2%)}100%{transform:translate(0,0)}}
 @media(prefers-color-scheme:dark){body::after{mix-blend-mode:screen}}
 @media(prefers-reduced-motion:reduce){body::before,body::after{animation:none}}
+
+/* typed headline */
+h1.type .w{display:inline-block}
+h1.type .c{opacity:0;position:relative}
+h1.type .c.on{opacity:1}
+h1.type .c.now:after{content:"";position:absolute;right:-.07em;top:.06em;bottom:.04em;width:.07em;background:var(--accent);animation:blink 1s steps(1) infinite}
+h1.type .c.end:after{animation:blink 1s steps(1) 4,fadeout .4s 4s forwards}
+@keyframes blink{50%{opacity:0}}@keyframes fadeout{to{opacity:0}}
