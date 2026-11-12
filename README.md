@@ -18,3 +18,13 @@ The site lists **full episodes only**. At build time it reads the channel feed a
 ```json
 { "ids": ["VIDEO_ID_HERE"] }
 ```
+
+## Episode cards, order, and Substack links
+
+- **Order:** episodes appear in the same order as the YouTube channel's Videos tab.
+- **Play button:** clicking a thumbnail plays the episode right on the page.
+- **Substack arrow ("Read on Substack"):** shown only when the site can find the write-up. It looks, in this order, at `content/substack.json`, a `substack:` line in an `content/interviews/*.md` file, a Substack post that embeds the video, a Substack link pasted into the YouTube description, and finally a title match. The easiest way: paste the Substack article link into the YouTube video description. To set one by hand, add it to `content/substack.json`:
+
+```json
+{ "VIDEO_ID": "https://calledtocause.substack.com/p/your-article" }
+```

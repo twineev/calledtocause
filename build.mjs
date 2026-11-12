@@ -61,6 +61,9 @@ async function isFullEpisode(id) {
   try { const r = await fetch(`https://www.youtube.com/shorts/${id}`, { ...opt, redirect: 'manual' }); return r.status !== 200; } catch {}
   return true;
 }
+// First 1-2 real sentences of a YouTube description: no links, hashtags, or timestamp lines.
+const cleanSummary = d => d.split('\n').map(l => l.replace(/https?:\/\/\S+/g, '').replace(/#\w+/g, '').replace(/\s+/g, ' ').trim())
+  .filter(l => l && !/^\d{1,2}:\d{2}/.test(l) && !/^[\d:\s–—-]+$/.test(l)).slice(0, 2).join(' ').slice(0, 260);
 async function youtubeEntries() {
   try {
     let xml = '';
@@ -68,11 +71,13 @@ async function youtubeEntries() {
       try { const r = await fetch(u, { signal: AbortSignal.timeout(15000) }); if (r.ok) { xml = await r.text(); if (xml.includes('<entry>')) break; } } catch {}
     }
     if (!xml.includes('<entry>')) throw new Error('no feed');
-    const all = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].map(m => {
+    const all = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].map((m, rank) => {
       const g = re => (m[1].match(re) || [])[1] || '';
       const un = s => s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
-      return { title: un(g(/<title>([\s\S]*?)<\/title>/)), date: g(/<published>(.*?)<\/published>/).slice(0, 10), youtube: g(/<yt:videoId>(.*?)<\/yt:videoId>/),
-        summary: un(g(/<media:description>([\s\S]*?)<\/media:description>/)).split('\n').filter(Boolean).slice(0, 2).join(' ').slice(0, 280), html: '' };
+      const desc = un(g(/<media:description>([\s\S]*?)<\/media:description>/));
+      const sub = (desc.match(/https?:\/\/[\w.-]*substack\.com\/p\/[\w-]+/) || [])[0] || '';
+      return { title: un(g(/<title>([\s\S]*?)<\/title>/)), date: g(/<published>(.*?)<\/published>/).slice(0, 10), ts: g(/<published>(.*?)<\/published>/), rank, youtube: g(/<yt:videoId>(.*?)<\/yt:videoId>/),
+        summary: cleanSummary(desc), substackFromDesc: sub, html: '' };
     });
     const hidden = new Set((() => { try { return JSON.parse(read('content/hide.json')).ids || []; } catch { return []; } })());
     const keep = await Promise.all(all.map(async e => hidden.has(e.youtube) ? false : await isFullEpisode(e.youtube)));
@@ -87,7 +92,47 @@ const manual = list('content/interviews').filter(f => f.endsWith('.md') && f !==
 const byId = new Map();
 for (const e of await youtubeEntries()) byId.set(e.youtube, e);
 for (const e of manual) byId.set(e.youtube || e.title, { ...(byId.get(e.youtube) || {}), ...e });
-const interviews = [...byId.values()].filter(e => e.title).map(e => ({ ...e, slug: slug(e.title) })).sort((a, b) => b.date.localeCompare(a.date));
+const interviews = [...byId.values()].filter(e => e.title).map(e => ({ ...e, slug: slug(e.title) }))
+  .sort((a, b) => (a.rank != null && b.rank != null) ? a.rank - b.rank : (b.ts || b.date).localeCompare(a.ts || a.date));
+
+// ---------- Substack write-ups: link each episode to its article ----------
+// Order of trust: content/substack.json > "substack:" in an interview file > Substack post that embeds the video > link in the YouTube description > title match.
+const STOP = new Set('called cause founder founders notes note angel angels checks check episode with from about that this have what when your they their them were been into more than then just like over only some also what whom while where which would could should these those there here being very much many most other such does done will make made said says tell told know take years year back'.split(' '));
+const toks = t => new Set((t.match(/[A-Za-z][A-Za-z'’]+/g) || []).map(w => w.replace(/['’]s$/i, '').toLowerCase()).filter(w => w.length >= 4 && !STOP.has(w)));
+const capIn = (t, w) => new RegExp('\\b' + w[0].toUpperCase() + w.slice(1)).test(t);
+async function substackPosts() {
+  if (!LINKS.substack) return [];
+  try {
+    const r = await fetch(LINKS.substack.replace(/\/$/, '') + '/feed', { signal: AbortSignal.timeout(15000) });
+    if (!r.ok) throw new Error(r.status);
+    const xml = await r.text();
+    const un = x => x.replace(/<!\[CDATA\[|\]\]>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
+    return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)].map(m => ({ title: un((m[1].match(/<title>([\s\S]*?)<\/title>/) || [])[1] || ''), url: un((m[1].match(/<link>([\s\S]*?)<\/link>/) || [])[1] || ''), raw: m[1] })).filter(p => p.title && p.url);
+  } catch (e) { console.warn('Substack feed unavailable, only using links you added by hand:', e.message || e); return []; }
+}
+{
+  const posts = await substackPosts();
+  const manualMap = (() => { try { return JSON.parse(read('content/substack.json')); } catch { return {}; } })();
+  const used = new Set(); const todo = [];
+  for (const e of interviews) {
+    const hand = manualMap[e.youtube] || manualMap[e.slug] || e.substack;
+    if (hand) { e.substack = hand; continue; }
+    const embed = posts.find(p => e.youtube && p.raw.includes(e.youtube));
+    if (embed) { e.substack = embed.url; used.add(embed.url); continue; }
+    if (e.substackFromDesc) { e.substack = e.substackFromDesc; continue; }
+    todo.push(e);
+  }
+  const pairs = [];
+  for (const e of todo) for (const p of posts) {
+    if (used.has(p.url)) continue;
+    const a = toks(e.title), shared = [...toks(p.title)].filter(w => a.has(w));
+    if (shared.length >= 2 || shared.some(w => w.length >= 6 && capIn(e.title, w) && capIn(p.title, w))) pairs.push({ e, p, n: shared.length });
+  }
+  pairs.sort((x, y) => y.n - x.n);
+  for (const { e, p } of pairs) if (!e.substack && !used.has(p.url)) { e.substack = p.url; used.add(p.url); }
+  console.log(`Substack: ${interviews.filter(e => e.substack).length} of ${interviews.length} episodes linked to a write-up`);
+  for (const e of interviews) if (e.substack) console.log(`  ${e.title.slice(0, 60)} -> ${e.substack}`);
+}
 
 const events = (() => { try { return JSON.parse(read('content/events.json')).events || []; } catch { console.warn('content/events.json missing or invalid, no events'); return []; } })().filter(e => !e.draft && e.name);
 const today = new Date().toISOString().slice(0, 10);
@@ -114,11 +159,15 @@ function page({ title, desc = DESC, path: p = '/', body, type = 'website' }) {
 <nav aria-label="Main">${nav.map(([h, l]) => `<a href="${h}"${p.startsWith(h) ? ' aria-current="page"' : ''}>${l}</a>`).join('')}</nav></div></header>
 <main>${body}</main>
 <footer><div class="wrap"><div><div class="brand" style="color:var(--cream)">${MARK.replace('class="halo"','class="halo" style="stroke:#E05AB0"').replace('class="glow"','class="glow" style="fill:#F2B3D8;fill-opacity:.55"')}<span class="wm">Called<br>to Cause</span></div><br>${esc(TAGLINE)}</div>
-<div>${social.map(([l, u]) => `<a href="${esc(u)}">${l}</a>`).join(' · ')}</div></div></footer></body></html>`;
+<div>${social.map(([l, u]) => `<a href="${esc(u)}">${l}</a>`).join(' · ')}</div></div></footer>
+<script>(function(){var saved={};document.addEventListener('click',function(ev){var a=ev.target.closest&&ev.target.closest('a.thumb[data-yt]');if(!a||ev.metaKey||ev.ctrlKey||ev.shiftKey||ev.button)return;ev.preventDefault();document.querySelectorAll('.thumb-player').forEach(function(p){if(saved[p.id])p.outerHTML=saved[p.id]});var id=a.getAttribute('data-yt'),box=document.createElement('div');box.className='thumb-player';box.id='tp-'+id;saved[box.id]=a.outerHTML;var f=document.createElement('iframe');f.src='https://www.youtube-nocookie.com/embed/'+id+'?autoplay=1&rel=0';f.title=a.getAttribute('aria-label')||'Video';f.allow='autoplay; encrypted-media; picture-in-picture; fullscreen';f.setAttribute('allowfullscreen','');box.appendChild(f);a.replaceWith(box);f.focus()})})()</script></body></html>`;
 }
 const card = (href, img, eyebrow, title, meta, sum) => `<article class="card">${img ? `<a href="${href}" tabindex="-1" aria-hidden="true"><img src="${img}" alt="" loading="lazy"></a>` : ''}<div class="b"><p class="eyebrow">${eyebrow}</p><h3><a href="${href}">${esc(title)}</a></h3><div class="meta">${meta}</div>${sum ? `<p>${esc(sum)}</p>` : ''}</div></article>`;
-const thumb = e => e.youtube ? `https://i.ytimg.com/vi/${e.youtube}/hqdefault.jpg` : '';
-const iCard = e => card(`/interviews/${e.slug}`, thumb(e), 'Interview', e.title, `${fmt(e.date)}${e.guest ? ' · ' + esc(e.guest) : ''}`, e.summary);
+const thumb = e => e.youtube ? `https://i.ytimg.com/vi/${e.youtube}/hq720.jpg` : '';
+const PLAY = '<svg viewBox="0 0 64 64" aria-hidden="true"><circle cx="32" cy="32" r="32"/><path d="M26 19.5v25l21-12.5z"/></svg>';
+const ARROW = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M3.5 10h12M10.5 5l5 5-5 5"/></svg>';
+const iCard = e => `<article class="card ep"><a class="thumb" href="/interviews/${e.slug}"${e.youtube ? ` data-yt="${e.youtube}"` : ''} aria-label="${e.youtube ? 'Play: ' : ''}${esc(e.title)}">${thumb(e) ? `<img src="${thumb(e)}" alt="" loading="lazy" onerror="this.onerror=null;this.src='https://i.ytimg.com/vi/${e.youtube}/hqdefault.jpg'">` : ''}${e.youtube ? `<span class="pb">${PLAY}</span>` : ''}</a>
+<div class="b"><h3><a href="/interviews/${e.slug}">${esc(e.title)}</a></h3><p class="meta">${fmt(e.date)}${e.guest ? ' · ' + esc(e.guest) : ''}</p>${e.summary ? `<p class="desc">${esc(e.summary)}</p>` : ''}${e.substack ? `<a class="sub" href="${esc(e.substack)}" target="_blank" rel="noopener" aria-label="Read the write-up of ${esc(e.title)} on Substack">Read on Substack ${ARROW}</a>` : ''}</div></article>`;
 const bCard = p => card(`/blog/${p.slug}`, '', 'Blog', p.title, fmt(p.date), p.summary);
 const eventList = list => list.length ? `<ul class="list">${list.map(e => `<li><div class="when">${fmt(e.date)}</div><div><h3>${e.url ? `<a href="${esc(e.url)}" style="color:inherit">${esc(e.name)}</a>` : esc(e.name)}</h3><div class="meta">${esc(e.location || '')}${e.host ? ' · ' + esc(e.host) : ''}</div></div></li>`).join('')}</ul>` : '';
 
@@ -137,6 +186,7 @@ write('index.html', page({ body: `<div class="wrap"><div class="hero"><div class
 write('interviews/index.html', page({ title: 'Interviews', path: '/interviews', desc: 'Every Called to Cause interview with founders and investors.', body: `<div class="wrap"><div class="hero" style="padding-bottom:16px"><p class="eyebrow">Called to Cause</p><h1>Interviews</h1><p class="lead">Founders on what it costs to build. Investors on why they said yes.</p></div><section style="border:0">${interviews.length ? `<div class="grid">${interviews.map(iCard).join('')}</div>` : '<div class="empty">No interviews published yet.</div>'}</section></div>` }));
 for (const e of interviews) write(`interviews/${e.slug}/index.html`, page({ title: e.title, path: `/interviews/${e.slug}`, desc: e.summary || DESC, type: 'article', body: `<div class="wrap article"><div class="hero" style="padding-bottom:0"><p class="eyebrow">Interview</p><h1 style="font-size:clamp(32px,6vw,48px);line-height:1.08">${esc(e.title)}</h1><p class="meta" style="margin-top:12px">${fmt(e.date)}${e.guest ? ' · ' + esc(e.guest) : ''}</p></div>
 ${e.youtube ? `<div class="video"><iframe src="https://www.youtube-nocookie.com/embed/${e.youtube}" title="${esc(e.title)}" loading="lazy" allowfullscreen></iframe></div>` : ''}
+${e.substack ? `<p><a class="btn ghost" href="${esc(e.substack)}" target="_blank" rel="noopener">Read the write-up on Substack &rarr;</a></p>` : ''}
 ${e.html || (e.summary ? `<p>${esc(e.summary)}</p>` : '')}${e.spotify ? `<p><a href="${esc(e.spotify)}">Listen on Spotify</a></p>` : ''}</div>` }));
 
 write('blog/index.html', page({ title: 'Blog', path: '/blog', desc: 'Notes from the Called to Cause conversations.', body: `<div class="wrap"><div class="hero" style="padding-bottom:16px"><p class="eyebrow">Called to Cause</p><h1>Blog</h1></div><section style="border:0">${posts.length ? `<div class="grid">${posts.map(bCard).join('')}</div>` : '<div class="empty">First post coming soon.</div>'}</section></div>` }));
