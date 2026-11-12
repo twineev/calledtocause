@@ -10,10 +10,13 @@ const YT_FEEDS = [`https://www.youtube.com/feeds/videos.xml?playlist_id=UULF${CH
 const MIN_EPISODE_MINUTES = Number(process.env.MIN_EPISODE_MINUTES || 8);
 const TAGLINE = "Because the best companies aren't just funded; they're called into being.";
 const DESC = 'Unfiltered conversations with the founders building category-defining companies and the investors backing them, hosted by Twinee Madan and Valeria Mushak.';
+// The Events page is switched off for now. To bring it back, set the environment variable SHOW_EVENTS=true in Netlify (or change this to true).
+const SHOW_EVENTS = process.env.SHOW_EVENTS === 'true';
 const LINKS = {
   youtube: 'https://www.youtube.com/@calledtocause',
   spotify: process.env.SPOTIFY_URL || 'https://open.spotify.com/show/0343bE5UBwLkRU4xW6W93Q',
   substack: process.env.SUBSTACK_URL || 'https://calledtocause.substack.com/',
+  linkedin: process.env.LINKEDIN_URL || 'https://www.linkedin.com/company/called-to-cause/',
   x: process.env.X_URL || '',
   intermission: process.env.INTERMISSION_URL || '',
 };
@@ -151,7 +154,7 @@ const past = events.filter(e => e.date < today).sort((a, b) => b.date.localeComp
 
 // ---------- layout ----------
 const MARK = `<svg viewBox="-4 -2 108 112" aria-hidden="true"><ellipse class="glow" cx="46" cy="27" rx="27" ry="9.5" transform="rotate(-16 50 20)"/><ellipse class="halo" cx="50" cy="20" rx="27" ry="9.5" transform="rotate(-16 50 20)"/><path class="fig" d="M50 40 L37 57"/><path class="fig" d="M50 40 L63 57"/><path class="fig" d="M45 54 L32 82"/><path class="fig" d="M55 54 L68 82"/></svg>`;
-const nav = [['/interviews', 'Interviews'], ['/blog', 'Blog'], ['/events', 'Events'], ['/about', 'About']];
+const nav = [['/interviews', 'Interviews'], ['/blog', 'Blog'], ['/events', 'Events'], ['/about', 'About']].filter(n => SHOW_EVENTS || n[0] !== '/events');
 function page({ title, desc = DESC, path: p = '/', body, type = 'website' }) {
   const t = title ? `${title} · Called to Cause` : 'Called to Cause';
   const social = [['YouTube', LINKS.youtube], ['Spotify', LINKS.spotify], ['Substack', LINKS.substack], ['X', LINKS.x]].filter(x => x[1]);
@@ -191,7 +194,7 @@ write('index.html', page({ body: `<div class="wrap"><div class="hero"><div class
 <script>(function(){var h=document.querySelector('h1.type');if(!h||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;var t=h.textContent;h.setAttribute('aria-label',t);h.textContent='';var cs=[];t.split(' ').forEach(function(w,i,a){var s=document.createElement('span');s.className='w';s.setAttribute('aria-hidden','true');w.split('').forEach(function(c){var k=document.createElement('span');k.className='c';k.textContent=c;s.appendChild(k);cs.push(k)});h.appendChild(s);if(i<a.length-1)h.appendChild(document.createTextNode(' '))});var n=0,p=null;(function step(){if(p)p.classList.remove('now');if(n<cs.length){p=cs[n++];p.classList.add('on','now');setTimeout(step,/[.]/.test(p.textContent)?420:42)}else{p.classList.add('now','end')}})()})()</script></div>
 <section><div class="sh"><h2>Latest interviews</h2><a href="/interviews">All interviews</a></div>${interviews.length ? `<div class="grid">${interviews.slice(0, 3).map(iCard).join('')}</div>` : '<div class="empty">New conversations are on the way.</div>'}</section>
 <section><div class="sh"><h2>From the blog</h2><a href="/blog">All posts</a></div>${posts.length ? `<div class="grid">${posts.slice(0, 3).map(bCard).join('')}</div>` : '<div class="empty">First post coming soon.</div>'}</section>
-<section><div class="band"><p class="eyebrow" style="color:inherit">Find us in person</p><h2>Where Intermission will be</h2><p>${upcoming.length ? `Next up: <strong>${esc(upcoming[0].name)}</strong>, ${fmt(upcoming[0].date)}${upcoming[0].location ? ' in ' + esc(upcoming[0].location) : ''}.` : 'Events are being added. Check back soon.'} <a href="/events">See all events</a></p></div></section></div>` }));
+${SHOW_EVENTS ? `<section><div class="band"><p class="eyebrow" style="color:inherit">Find us in person</p><h2>Where Intermission will be</h2><p>${upcoming.length ? `Next up: <strong>${esc(upcoming[0].name)}</strong>, ${fmt(upcoming[0].date)}${upcoming[0].location ? ' in ' + esc(upcoming[0].location) : ''}.` : 'Events are being added. Check back soon.'} <a href="/events">See all events</a></p></div></section>` : ''}</div>` }));
 
 write('interviews/index.html', page({ title: 'Interviews', path: '/interviews', desc: 'Every Called to Cause interview with founders and investors.', body: `<div class="wrap"><div class="hero" style="padding-bottom:16px"><p class="eyebrow">Called to Cause</p><h1>Interviews</h1><p class="lead">Founders on what it costs to build. Investors on why they said yes.</p></div><section style="border:0">${interviews.length ? `<div class="grid">${interviews.map(iCard).join('')}</div>` : '<div class="empty">No interviews published yet.</div>'}</section></div>` }));
 for (const e of interviews) write(`interviews/${e.slug}/index.html`, page({ title: e.title, path: `/interviews/${e.slug}`, desc: e.summary || DESC, type: 'article', body: `<div class="wrap article"><div class="hero" style="padding-bottom:0"><p class="eyebrow">Interview</p><h1 style="font-size:clamp(32px,6vw,48px);line-height:1.08">${esc(e.title)}</h1><p class="meta" style="margin-top:12px">${fmt(e.date)}${e.guest ? ' · ' + esc(e.guest) : ''}</p></div>
@@ -202,7 +205,7 @@ ${e.html || (e.summary ? `<p>${esc(e.summary)}</p>` : '')}${e.spotify ? `<p><a h
 write('blog/index.html', page({ title: 'Blog', path: '/blog', desc: 'Notes from the Called to Cause conversations.', body: `<div class="wrap"><div class="hero" style="padding-bottom:16px"><p class="eyebrow">Called to Cause</p><h1>Blog</h1></div><section style="border:0">${posts.length ? `<div class="grid">${posts.map(bCard).join('')}</div>` : '<div class="empty">First post coming soon.</div>'}</section></div>` }));
 for (const p of posts) write(`blog/${p.slug}/index.html`, page({ title: p.title, path: `/blog/${p.slug}`, desc: p.summary || DESC, type: 'article', body: `<div class="wrap article"><div class="hero" style="padding-bottom:16px"><p class="eyebrow">Blog</p><h1 style="font-size:clamp(32px,6vw,48px);line-height:1.08">${esc(p.title)}</h1><p class="meta" style="margin-top:12px">${fmt(p.date)} · Twinee Madan</p></div>${p.html}</div>` }));
 
-write('events/index.html', page({ title: 'Events', path: '/events', desc: 'Events Intermission will be at.', body: `<div class="wrap"><div class="hero" style="padding-bottom:16px"><p class="eyebrow">Intermission</p><h1>Events</h1><p class="lead">Where to find us. Intermission provides event services to startups and VCs${LINKS.intermission ? ` — <a href="${esc(LINKS.intermission)}">learn more</a>` : ''}.</p></div>
+if (SHOW_EVENTS) write('events/index.html', page({ title: 'Events', path: '/events', desc: 'Events Intermission will be at.', body: `<div class="wrap"><div class="hero" style="padding-bottom:16px"><p class="eyebrow">Intermission</p><h1>Events</h1><p class="lead">Where to find us. Intermission provides event services to startups and VCs${LINKS.intermission ? ` — <a href="${esc(LINKS.intermission)}">learn more</a>` : ''}.</p></div>
 <section style="border:0"><h2 style="margin-bottom:16px">Upcoming</h2>${eventList(upcoming) || '<div class="empty">No upcoming events listed yet.</div>'}</section>${past.length ? `<section><h2 style="margin-bottom:16px">Past</h2>${eventList(past)}</section>` : ''}</div>` }));
 
 write('about/index.html', page({ title: 'About', path: '/about', body: `<div class="wrap article"><div class="hero" style="padding-bottom:16px"><p class="eyebrow">About</p><h1>Called to Cause</h1></div>
@@ -211,7 +214,7 @@ write('about/index.html', page({ title: 'About', path: '/about', body: `<div cla
 <p>Founders talk about what it actually costs to build: the trade-offs, the pivots, the thing they got wrong before they got it right. Investors talk about why they said yes when everyone else said no, and what conviction looks like before the traction does.</p>
 <p>This isn't capital and company-building told separately. It's the same story, from both sides of the table.</p>
 <p><em>${esc(TAGLINE)}</em></p>
-<h2>Follow along</h2><p>Subscribe on ${[['YouTube', LINKS.youtube], ['Spotify', LINKS.spotify], ['Substack', LINKS.substack]].filter(x => x[1]).map(([l, u]) => `<a href="${esc(u)}">${l}</a>`).join(', ').replace(/, ([^,]*)$/, ' or $1')}.</p></div>` }));
+<h2>Follow along</h2><p>Find us on ${[['YouTube', LINKS.youtube], ['Spotify', LINKS.spotify], ['Substack', LINKS.substack], ['LinkedIn', LINKS.linkedin]].filter(x => x[1]).map(([l, u]) => `<a href="${esc(u)}">${l}</a>`).join(', ').replace(/, ([^,]*)$/, ' or $1')}.</p></div>` }));
 
 write('404.html', page({ title: 'Not found', body: `<div class="wrap"><div class="hero"><h1>Not found</h1><p class="lead"><a href="/">Back to the home page</a></p></div></div>` }));
 
@@ -233,7 +236,7 @@ const all = [...iItems, ...bItems].sort((a, b) => b.date.localeCompare(a.date));
 feed('rss.xml', 'Called to Cause', all); feed('interviews.xml', 'Called to Cause — Interviews', iItems); feed('blog.xml', 'Called to Cause — Blog', bItems);
 
 // sitemap + robots
-const urls = ['/', '/interviews', '/blog', '/events', '/about', ...interviews.map(e => `/interviews/${e.slug}`), ...posts.map(p => `/blog/${p.slug}`)];
+const urls = ['/', '/interviews', '/blog', ...(SHOW_EVENTS ? ['/events'] : []), '/about', ...interviews.map(e => `/interviews/${e.slug}`), ...posts.map(p => `/blog/${p.slug}`)];
 write('sitemap.xml', `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${urls.map(u => `<url><loc>${SITE}${u}</loc></url>`).join('')}</urlset>`);
 write('robots.txt', `User-agent: *\nAllow: /\nSitemap: ${SITE}/sitemap.xml\n`);
 console.log(`Built ${interviews.length} interviews, ${posts.length} posts, ${events.length} events → dist/`);

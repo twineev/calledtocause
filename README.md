@@ -36,3 +36,7 @@ Episodes follow the YouTube channel's order. To swap some of them, list a few wo
 ```json
 { "order": ["Sex, Somatics", "Neither Side Shows Up First"] }
 ```
+
+## Events page (hidden for now)
+
+The Events page, its nav link, its home-page banner, and its sitemap entry are switched off. To bring them back, add an environment variable `SHOW_EVENTS` set to `true` in Netlify (Project configuration → Environment variables) and redeploy. Add your events to `content/events.json` first.
