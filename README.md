@@ -10,3 +10,11 @@ spotify: https://open.spotify.com/episode/...   (optional)
 summary: One or two sentences.
 ---
 Show notes in markdown.
+
+## Which YouTube videos appear
+
+The site lists **full episodes only**. At build time it reads the channel feed and leaves out anything shorter than 8 minutes (clips, teasers, Shorts). To change the cutoff, set the `MIN_EPISODE_MINUTES` environment variable in Netlify. To hide a specific video, add its ID (the part after `v=` in the YouTube link) to `content/hide.json`:
+
+```json
+{ "ids": ["VIDEO_ID_HERE"] }
+```

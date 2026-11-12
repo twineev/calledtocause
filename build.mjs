@@ -4,7 +4,10 @@ import path from 'node:path';
 
 const SITE = process.env.SITE_URL || 'https://calledtocause.com';
 const CHANNEL_ID = 'UCvBZ6phclijg2x_AbXHR9cg';
-const YT_FEED = `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`;
+// UULF = YouTube's automatic "long-form videos only" playlist (no Shorts); the plain channel feed is the fallback.
+const YT_FEEDS = [`https://www.youtube.com/feeds/videos.xml?playlist_id=UULF${CHANNEL_ID.slice(2)}`, `https://www.youtube.com/feeds/videos.xml?channel_id=${CHANNEL_ID}`];
+// Only full episodes are listed: anything shorter than this many minutes (clips, teasers, Shorts) is left out.
+const MIN_EPISODE_MINUTES = Number(process.env.MIN_EPISODE_MINUTES || 8);
 const TAGLINE = "Because the best companies aren't just funded; they're called into being.";
 const DESC = 'Unfiltered conversations with the founders building category-defining companies and the investors backing them, hosted by Twinee Madan and Valeria Mushak.';
 const LINKS = {
@@ -47,17 +50,35 @@ const posts = list('content/blog').filter(f => f.endsWith('.md')).map(f => {
   return { ...fm, slug: fm.slug || slug(fm.title || f), html: md(body) };
 }).filter(p => p.title && p.draft !== 'true').sort((a, b) => b.date.localeCompare(a.date));
 
+// Full-length check: read the video's length from its watch page; if that can't be read, at least rule out Shorts.
+async function isFullEpisode(id) {
+  const opt = { headers: { 'user-agent': 'Mozilla/5.0 (compatible; CalledToCauseBuild/1.0)', 'accept-language': 'en-US,en;q=0.9', cookie: 'CONSENT=YES+1; SOCS=CAI' }, signal: AbortSignal.timeout(15000) };
+  try {
+    const r = await fetch(`https://www.youtube.com/watch?v=${id}`, opt);
+    const m = (await r.text()).match(/"lengthSeconds":"(\d+)"/);
+    if (m) return Number(m[1]) >= MIN_EPISODE_MINUTES * 60;
+  } catch {}
+  try { const r = await fetch(`https://www.youtube.com/shorts/${id}`, { ...opt, redirect: 'manual' }); return r.status !== 200; } catch {}
+  return true;
+}
 async function youtubeEntries() {
   try {
-    const r = await fetch(YT_FEED, { signal: AbortSignal.timeout(15000) });
-    if (!r.ok) throw new Error(r.status);
-    const xml = await r.text();
-    return [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].map(m => {
+    let xml = '';
+    for (const u of YT_FEEDS) {
+      try { const r = await fetch(u, { signal: AbortSignal.timeout(15000) }); if (r.ok) { xml = await r.text(); if (xml.includes('<entry>')) break; } } catch {}
+    }
+    if (!xml.includes('<entry>')) throw new Error('no feed');
+    const all = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].map(m => {
       const g = re => (m[1].match(re) || [])[1] || '';
       const un = s => s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
       return { title: un(g(/<title>([\s\S]*?)<\/title>/)), date: g(/<published>(.*?)<\/published>/).slice(0, 10), youtube: g(/<yt:videoId>(.*?)<\/yt:videoId>/),
         summary: un(g(/<media:description>([\s\S]*?)<\/media:description>/)).split('\n').filter(Boolean).slice(0, 2).join(' ').slice(0, 280), html: '' };
     });
+    const hidden = new Set((() => { try { return JSON.parse(read('content/hide.json')).ids || []; } catch { return []; } })());
+    const keep = await Promise.all(all.map(async e => hidden.has(e.youtube) ? false : await isFullEpisode(e.youtube)));
+    const out = all.filter((_, i) => keep[i]);
+    console.log(`YouTube: ${out.length} full episodes kept, ${all.length - out.length} clips/Shorts/hidden left out`);
+    return out;
   } catch (e) { console.warn('YouTube feed unavailable, using only content/interviews:', e.message || e); return []; }
 }
 const manual = list('content/interviews').filter(f => f.endsWith('.md') && f !== 'README.md').map(f => {
