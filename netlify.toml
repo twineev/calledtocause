@@ -1,0 +1,16 @@
+[build]
+  command = "node build.mjs"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[headers]]
+  for = "/*.xml"
+  [headers.values]
+    Content-Type = "application/rss+xml; charset=utf-8"
+
+[[redirects]]
+  from = "/*"
+  to = "/404.html"
+  status = 404
