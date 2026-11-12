@@ -28,3 +28,11 @@ The site lists **full episodes only**. At build time it reads the channel feed a
 ```json
 { "VIDEO_ID": "https://calledtocause.substack.com/p/your-article" }
 ```
+
+## Changing the order of two or more episodes
+
+Episodes follow the YouTube channel's order. To swap some of them, list a few words from each title, in the order you want them, in `content/order.json`. Only the episodes you list trade places with each other; everything else stays put.
+
+```json
+{ "order": ["Sex, Somatics", "Neither Side Shows Up First"] }
+```

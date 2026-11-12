@@ -95,6 +95,16 @@ for (const e of manual) byId.set(e.youtube || e.title, { ...(byId.get(e.youtube)
 const interviews = [...byId.values()].filter(e => e.title).map(e => ({ ...e, slug: slug(e.title) }))
   .sort((a, b) => (a.rank != null && b.rank != null) ? a.rank - b.rank : (b.ts || b.date).localeCompare(a.ts || a.date));
 
+// Optional manual order: content/order.json {"order": ["title words", ...]}. Episodes whose title contains one of these words are put in that order,
+// swapping places with each other; every other episode stays where YouTube's order put it.
+{
+  const keys = (() => { try { return JSON.parse(read('content/order.json')).order || []; } catch { return []; } })();
+  const at = e => keys.findIndex(k => e.title.toLowerCase().includes(String(k).toLowerCase()));
+  const slots = interviews.map((e, i) => at(e) >= 0 ? i : -1).filter(i => i >= 0);
+  const picked = slots.map(i => interviews[i]).sort((x, y) => at(x) - at(y));
+  slots.forEach((slot, j) => { interviews[slot] = picked[j]; });
+}
+
 // ---------- Substack write-ups: link each episode to its article ----------
 // Order of trust: content/substack.json > "substack:" in an interview file > Substack post that embeds the video > link in the YouTube description > title match.
 const STOP = new Set('called cause founder founders notes note angel angels checks check episode with from about that this have what when your they their them were been into more than then just like over only some also what whom while where which would could should these those there here being very much many most other such does done will make made said says tell told know take years year back'.split(' '));
