@@ -70,10 +70,18 @@ const cleanSummary = d => d.split('\n').map(l => l.replace(/https?:\/\/\S+/g, ''
 async function youtubeEntries() {
   try {
     let xml = '';
-    for (const u of YT_FEEDS) {
-      try { const r = await fetch(u, { signal: AbortSignal.timeout(15000) }); if (r.ok) { xml = await r.text(); if (xml.includes('<entry>')) break; } } catch {}
+    const UA = { 'user-agent': 'Mozilla/5.0 (compatible; CalledToCauseBuild/1.0)', 'accept-language': 'en-US,en;q=0.9' };
+    outer: for (let attempt = 1; attempt <= 4; attempt++) {
+      for (const u of YT_FEEDS) {
+        try {
+          const r = await fetch(u, { headers: UA, signal: AbortSignal.timeout(20000) });
+          if (r.ok) { xml = await r.text(); if (xml.includes('<entry>')) break outer; }
+          console.warn(`YouTube feed attempt ${attempt}: HTTP ${r.status} for ${u}`);
+        } catch (e) { console.warn(`YouTube feed attempt ${attempt} failed for ${u}:`, e.message || e); }
+      }
+      await new Promise(r => setTimeout(r, attempt * 3000));
     }
-    if (!xml.includes('<entry>')) throw new Error('no feed');
+    if (!xml.includes('<entry>')) throw new Error('no feed after 4 attempts');
     const all = [...xml.matchAll(/<entry>([\s\S]*?)<\/entry>/g)].map((m, rank) => {
       const g = re => (m[1].match(re) || [])[1] || '';
       const un = s => s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
@@ -87,7 +95,12 @@ async function youtubeEntries() {
     const out = all.filter((_, i) => keep[i]);
     console.log(`YouTube: ${out.length} full episodes kept, ${all.length - out.length} clips/Shorts/hidden left out`);
     return out;
-  } catch (e) { console.warn('YouTube feed unavailable, using only content/interviews:', e.message || e); return []; }
+  } catch (e) {
+    console.error('YouTube feed unavailable:', e.message || e);
+    // Fail the build instead of publishing a site with no videos: Netlify then keeps the last good deploy live.
+    if (process.env.ALLOW_NO_VIDEOS !== 'true') { console.error('Failing build so the previous deploy stays live (set ALLOW_NO_VIDEOS=true to override).'); process.exit(1); }
+    return [];
+  }
 }
 const manual = list('content/interviews').filter(f => f.endsWith('.md') && f !== 'README.md').map(f => {
   const [fm, body] = front(read('content/interviews/' + f)); return { ...fm, html: md(body) };
