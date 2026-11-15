@@ -97,16 +97,26 @@ async function youtubeEntries() {
     return out;
   } catch (e) {
     console.error('YouTube feed unavailable:', e.message || e);
-    // Fail the build instead of publishing a site with no videos: Netlify then keeps the last good deploy live.
-    if (process.env.ALLOW_NO_VIDEOS !== 'true') { console.error('Failing build so the previous deploy stays live (set ALLOW_NO_VIDEOS=true to override).'); process.exit(1); }
     return [];
   }
+}
+// Fallback list (content/videos.json): used when YouTube can't be reached at build time, and to add anything the feed doesn't list.
+function fallbackEntries() {
+  try {
+    return (JSON.parse(read('content/videos.json')).videos || []).filter(v => v.id && v.title).map((v, rank) => ({
+      title: v.title.replace(/&amp;/g, '&'), date: String(v.date).slice(0, 10), ts: v.date, rank: 1000 + rank, youtube: v.id,
+      summary: cleanSummary(v.desc || ''), substackFromDesc: '', html: '' }));
+  } catch { return []; }
 }
 const manual = list('content/interviews').filter(f => f.endsWith('.md') && f !== 'README.md').map(f => {
   const [fm, body] = front(read('content/interviews/' + f)); return { ...fm, html: md(body) };
 });
 const byId = new Map();
-for (const e of await youtubeEntries()) byId.set(e.youtube, e);
+const fromFeed = await youtubeEntries();
+for (const e of fromFeed) byId.set(e.youtube, e);
+for (const e of fallbackEntries()) if (!byId.has(e.youtube)) byId.set(e.youtube, e);
+console.log(`Episodes: ${fromFeed.length} from YouTube feed, ${byId.size} total after fallback list`);
+if (!byId.size && process.env.ALLOW_NO_VIDEOS !== 'true') { console.error('No episodes at all; failing build so the previous deploy stays live.'); process.exit(1); }
 for (const e of manual) byId.set(e.youtube || e.title, { ...(byId.get(e.youtube) || {}), ...e });
 const interviews = [...byId.values()].filter(e => e.title).map(e => ({ ...e, slug: slug(e.title) }))
   .sort((a, b) => (a.rank != null && b.rank != null) ? a.rank - b.rank : (b.ts || b.date).localeCompare(a.ts || a.date));

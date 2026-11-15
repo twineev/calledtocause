@@ -1,0 +1,59 @@
+{
+ "_note": "Fallback list used when YouTube can't be reached at build time (and to fill in anything missing from the feed). Add new episodes at the top: id, title, date (ISO), desc. Newest first.",
+ "videos": [
+  {
+   "id": "1U9XYRVLLS0",
+   "title": "Called to Cause: Haley Swank,Solene Capital: Betting on Things That Can’t Be Copied",
+   "date": "2026-11-09T00:00:09-08:00",
+   "desc": "Haley Swank grew a garage startup into a profitable business and an exit, then learned investing from the inside. Today she’s Managing Partner of Solène Capital, which invests across energy, mobility and autonomy, and space."
+  },
+  {
+   "id": "U1QLevqcXUA",
+   "title": "Called to Cause Founder Notes: Building Community Through Creativity with Kelsey Wynne",
+   "date": "2026-10-26T00:00:25-07:00",
+   "desc": "What happens when you leave what you know to build something new, and the thing you build is creative? In this episode of Called to Cause, I sit down with Kelsey Wynne, creator of Kelsey’s Connection."
+  },
+  {
+   "id": "wcMu6q4EQNo",
+   "title": "Called to Cause Founder Notes From Software to Physical Inventory: The sipToday Origin Story",
+   "date": "2026-09-14T15:07:15-07:00",
+   "desc": "What happens when a finance and software professional realizes you can't hit \"undo\" on a massive physical inventory order?\n\nIn this Called to Cause Founder Notes episode, we sit down with Sergio Inunzia, founder of sipToday."
+  },
+  {
+   "id": "nx9iTpDea6s",
+   "title": "Called to Cause Founder Notes: Broken Handoffs, Not Bad People: The Gap Between the Visit and Care",
+   "date": "2026-09-03T08:00:27-07:00",
+   "desc": "Most attempts to fix healthcare chase better decisions. Khatrina Swarup thinks the real failures happen in the gaps between them, the handoffs."
+  },
+  {
+   "id": "svxLbkqqOGQ",
+   "title": "Called to Cause Angel Checks: From Founder to Funder",
+   "date": "2026-09-02T08:00:21-07:00",
+   "desc": "Before she was writing checks, Alexis was in the founder's seat, raising, building, and living the exact pitches she now evaluates as an angel investor. In this episode of Called to Cause, host Valeria sits down with Alexis to unpack that rare dual perspective."
+  },
+  {
+   "id": "R6SxDHEz46g",
+   "title": "Called to Cause Founder Notes: Building the Skincare App Your Friends Would Actually Trust",
+   "date": "2026-09-01T00:00:00-07:00",
+   "desc": "On this episode of Founder Notes, we sit down with sisters Morgan and McKenzie, co-founders of Ralli, a skincare app built on a simple bet: your friends' honest opinions beat another influencer's sponsored post."
+  },
+  {
+   "id": "hg3lKN0A-YA",
+   "title": "Called to Cause Founder Notes: I Bootstrapped Three Businesses. Then I Learned How to Get the Money.",
+   "date": "2026-08-27T00:00:39-07:00",
+   "desc": "Lauren Taylor has started four businesses across four industries that have nothing to do with each other: branding, real estate, cosmetic dentistry, and now finance. She bootstrapped the first three."
+  },
+  {
+   "id": "o7q-wtaNg8M",
+   "title": "Called to Cause Founder Notes: Neither Side Shows Up First w/ Angelocal",
+   "date": "2026-08-26T00:00:30-07:00",
+   "desc": "Founder Notes Ep. 1: Neither Side Shows Up First w/ Dia Gauthier, Founder & CEO of Angelocal\n\nIn the debut episode of Founder Notes, Dia Gauthier walks us through what it really takes to build a two-sided marketplace from nothing."
+  },
+  {
+   "id": "Y-sqQxqjykA",
+   "title": "Called to Cause Founder Notes: Sex, Somatics & the Taboo Moat w/ Laketi",
+   "date": "2026-08-26T00:00:14-07:00",
+   "desc": "Most people think experience with non-monogamy builds the skills it requires. Janelle Toussaint, somatic sexologist, ENM coach, and the founder known as @TheSexTechnologist, thinks that's exactly backward, and she's building LAKETI to prove it."
+  }
+ ]
+}
