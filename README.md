@@ -40,3 +40,9 @@ Episodes follow the YouTube channel's order. To swap some of them, list a few wo
 ## Events page (hidden for now)
 
 The Events page, its nav link, its home-page banner, and its sitemap entry are switched off. To bring them back, add an environment variable `SHOW_EVENTS` set to `true` in Netlify (Project configuration → Environment variables) and redeploy. Add your events to `content/events.json` first.
+
+## YouTube episodes: how they get onto the site
+1. **YouTube Data API (best):** set `YOUTUBE_API_KEY` in Netlify > Site configuration > Environment variables. New full-length uploads then appear on the next build.
+2. **Public feed:** used if there is no key or the API fails.
+3. **`content/videos.json`:** fallback list, used if YouTube can't be reached, and to fill in anything the feed doesn't list.
+A daily rebuild (GitHub Action `.github/workflows/daily-rebuild.yml`, needs the `NETLIFY_BUILD_HOOK` secret) picks up new episodes automatically.

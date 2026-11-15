@@ -67,7 +67,40 @@ async function isFullEpisode(id) {
 // First 1-2 real sentences of a YouTube description: no links, hashtags, or timestamp lines.
 const cleanSummary = d => d.split('\n').map(l => l.replace(/https?:\/\/\S+/g, '').replace(/#\w+/g, '').replace(/\s+/g, ' ').trim())
   .filter(l => l && !/^\d{1,2}:\d{2}/.test(l) && !/^[\d:\s–—-]+$/.test(l)).slice(0, 2).join(' ').slice(0, 260);
+// Official YouTube Data API (needs YOUTUBE_API_KEY in Netlify env vars): reliable from build servers and gives exact lengths.
+const isoSecs = d => { const m = /^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/.exec(d || '') || []; return (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0); };
+async function youtubeApiEntries() {
+  const key = process.env.YOUTUBE_API_KEY;
+  if (!key) return null;
+  try {
+    const api = async (path, q) => {
+      const r = await fetch(`https://www.googleapis.com/youtube/v3/${path}?${new URLSearchParams({ ...q, key })}`, { signal: AbortSignal.timeout(20000) });
+      if (!r.ok) throw new Error(`YouTube API ${path}: HTTP ${r.status} ${(await r.text()).slice(0, 200)}`);
+      return r.json();
+    };
+    const items = []; let pageToken = '';
+    for (let p = 0; p < 6; p++) {
+      const j = await api('playlistItems', { part: 'snippet,contentDetails', playlistId: 'UU' + CHANNEL_ID.slice(2), maxResults: '50', ...(pageToken ? { pageToken } : {}) });
+      items.push(...(j.items || [])); pageToken = j.nextPageToken || ''; if (!pageToken) break;
+    }
+    const len = new Map();
+    for (let i = 0; i < items.length; i += 50) {
+      const j = await api('videos', { part: 'contentDetails', id: items.slice(i, i + 50).map(x => x.contentDetails.videoId).join(',') });
+      for (const v of j.items || []) len.set(v.id, isoSecs(v.contentDetails.duration));
+    }
+    const hidden = new Set((() => { try { return JSON.parse(read('content/hide.json')).ids || []; } catch { return []; } })());
+    const out = items.map((x, rank) => ({ id: x.contentDetails.videoId, rank, sn: x.snippet || {} }))
+      .filter(x => x.sn.title && x.sn.title !== 'Private video' && x.sn.title !== 'Deleted video' && !hidden.has(x.id) && (len.get(x.id) || 0) >= MIN_EPISODE_MINUTES * 60)
+      .map(x => { const ts = x.sn.publishedAt || ''; const desc = x.sn.description || '';
+        return { title: x.sn.title, date: ts.slice(0, 10), ts, rank: x.rank, youtube: x.id, summary: cleanSummary(desc),
+          substackFromDesc: (desc.match(/https?:\/\/[\w.-]*substack\.com\/p\/[\w-]+/) || [])[0] || '', html: '' }; });
+    console.log(`YouTube API: ${out.length} full episodes of ${items.length} uploads`);
+    return out;
+  } catch (e) { console.warn('YouTube API failed, falling back to feed:', e.message || e); return null; }
+}
 async function youtubeEntries() {
+  const viaApi = await youtubeApiEntries();
+  if (viaApi && viaApi.length) return viaApi;
   try {
     let xml = '';
     const UA = { 'user-agent': 'Mozilla/5.0 (compatible; CalledToCauseBuild/1.0)', 'accept-language': 'en-US,en;q=0.9' };

@@ -1,0 +1,17 @@
+# Rebuilds the site every day so new YouTube episodes appear on their own.
+# Needs a GitHub secret named NETLIFY_BUILD_HOOK (the URL from Netlify > Site configuration > Build & deploy > Build hooks).
+name: Daily rebuild
+on:
+  schedule:
+    - cron: '17 15 * * *'
+  workflow_dispatch:
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Netlify build
+        env:
+          HOOK: ${{ secrets.NETLIFY_BUILD_HOOK }}
+        run: |
+          if [ -z "$HOOK" ]; then echo "NETLIFY_BUILD_HOOK secret not set"; exit 1; fi
+          curl -fsS -X POST -d '{}' "$HOOK"
